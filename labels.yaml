@@ -1,0 +1,50 @@
+# This config is example
+
+labels:
+  - name: "area/kubernetes"
+    description: "Indicates an issue on Kubernetes area."
+    color: "1d76db"
+  - name: "area/security"
+    description: "Indicates an issue on security area."
+    color: "1d76db"
+  - name: "kind/discussion"
+    description: "Categorizes issue or PR as related to discussion."
+    color: "bfd4f2"
+  - name: "kind/incident"
+    description: "Categorizes issue or PR as related to an incident."
+    color: "d93f0b"
+  - name: "kind/proactive"
+    description: "Categorizes issue or PR as related to proactive tasks."
+    color: "9CCC65"
+  - name: "kind/reactive"
+    description: "Categorizes issue or PR as related to reactive tasks."
+    color: "FFA000"
+  - name: "lifecycle/stale"
+    description: "Denotes an issue or PR has remained open with no activity and has become stale."
+    color: "784212"
+  - name: "lifecycle/frozen"
+    description: "Indicates that an issue or PR should not be auto-closed due to staleness."
+    color: "C2F8FF"
+  - name: "P0"
+    description: ""
+    color: "d93f0b"
+  - name: "P1"
+    description: ""
+    color: "fbca04"
+  - name: "P2"
+    description: ""
+    color: "f9bb5e"
+
+repos:
+  - name: b4b4r07/github-labeler
+    labels:
+      - area/kubernetes
+      - area/security
+      - kind/discussion
+      - kind/incident
+      - kind/proactive
+      - kind/reactive
+      - lifecycle/stale
+      - P0
+      - P1
+      - P2
