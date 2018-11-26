@@ -110,9 +110,13 @@ func (g *LabelService) Get(owner, repo string, label Label) (Label, error) {
 	if err != nil {
 		return Label{}, err
 	}
+	description := ""
+	if fetchedLabel.Description != nil {
+		description = *fetchedLabel.Description
+	}
 	return Label{
 		Name:        *fetchedLabel.Name,
-		Description: *fetchedLabel.Description,
+		Description: description,
 		Color:       *fetchedLabel.Color,
 	}, nil
 }
