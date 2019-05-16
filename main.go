@@ -83,6 +83,7 @@ type githubClient struct {
 	*github.Client
 
 	dryRun bool
+	logger *log.Logger
 
 	common service
 
@@ -130,14 +131,14 @@ func (g *LabelService) Create(owner, repo string, label Label) error {
 		Color:       github.String(label.Color),
 	}
 	if len(label.PreviousName) > 0 {
-		log.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
+		g.client.logger.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
 		if g.client.dryRun {
 			return nil
 		}
 		_, _, err := g.client.Issues.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
 		return err
 	}
-	log.Printf("create %q in %s/%s", label.Name, owner, repo)
+	g.client.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
 	if g.client.dryRun {
 		return nil
 	}
@@ -153,7 +154,7 @@ func (g *LabelService) Edit(owner, repo string, label Label) error {
 		Description: github.String(label.Description),
 		Color:       github.String(label.Color),
 	}
-	log.Printf("edit %q in %s/%s", label.Name, owner, repo)
+	g.client.logger.Printf("edit %q in %s/%s", label.Name, owner, repo)
 	if g.client.dryRun {
 		return nil
 	}
@@ -193,7 +194,7 @@ func (g *LabelService) List(owner, repo string) ([]Label, error) {
 // Delete deletes GitHub labels
 func (g *LabelService) Delete(owner, repo string, label Label) error {
 	ctx := context.Background()
-	log.Printf("delete %q in %s/%s", label.Name, owner, repo)
+	g.client.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
 	if g.client.dryRun {
 		return nil
 	}
@@ -275,6 +276,11 @@ func newLabeler(configPath string, dryRun bool) (Labeler, error) {
 	gc := &githubClient{
 		Client: client,
 		dryRun: dryRun,
+		logger: log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
+	}
+	if dryRun {
+		gc.logger.SetPrefix("labeler (dry-run): ")
+		// gc.logger = log.New(os.Stdout, "labeler (dry-run): ", 0)
 	}
 	gc.common.client = gc
 	gc.Label = (*LabelService)(&gc.common)
