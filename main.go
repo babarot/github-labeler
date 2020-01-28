@@ -113,18 +113,14 @@ type Labeler struct {
 // Get gets GitHub labels
 func (g *LabelService) Get(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
-	fetchedLabel, _, err := g.client.Issues.GetLabel(ctx, owner, repo, label.Name)
+	ghLabel, _, err := g.client.Issues.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
 		return Label{}, err
 	}
-	description := ""
-	if fetchedLabel.Description != nil {
-		description = *fetchedLabel.Description
-	}
 	return Label{
-		Name:        *fetchedLabel.Name,
-		Description: description,
-		Color:       *fetchedLabel.Color,
+		Name:        ghLabel.GetName(),
+		Description: ghLabel.GetDescription(),
+		Color:       ghLabel.GetName(),
 	}, nil
 }
 
@@ -179,14 +175,10 @@ func (g *LabelService) List(owner, repo string) ([]Label, error) {
 			return labels, err
 		}
 		for _, ghLabel := range ghLabels {
-			description := ""
-			if ghLabel.Description != nil {
-				description = *ghLabel.Description
-			}
 			labels = append(labels, Label{
-				Name:        *ghLabel.Name,
-				Description: description,
-				Color:       *ghLabel.Color,
+				Name:        ghLabel.GetName(),
+				Description: ghLabel.GetDescription(),
+				Color:       ghLabel.GetColor(),
 			})
 		}
 		if resp.NextPage == 0 {
@@ -210,12 +202,12 @@ func (g *LabelService) Delete(owner, repo string, label Label) error {
 
 // applyLabels creates/edits labels described in YAML
 func (l Labeler) applyLabels(owner, repo string, label Label) error {
-	fetchedLabel, err := l.github.Label.Get(owner, repo, label)
+	ghLabel, err := l.github.Label.Get(owner, repo, label)
 	if err != nil {
 		return l.github.Label.Create(owner, repo, label)
 	}
 
-	if fetchedLabel.Description != label.Description || fetchedLabel.Color != label.Color {
+	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
 		return l.github.Label.Edit(owner, repo, label)
 	}
 
