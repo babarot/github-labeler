@@ -18,6 +18,12 @@ import (
 	"github.com/google/go-github/github"
 )
 
+// These variables are set in Goreleaser
+var (
+	Version  = "unset"
+	Revision = "unset"
+)
+
 // Manifest represents the YAML file described about labels and repos
 type Manifest struct {
 	Labels Labels `yaml:"labels"`
