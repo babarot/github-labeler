@@ -36,7 +36,7 @@ type Label struct {
 	Name         string `yaml:"name"`
 	Description  string `yaml:"description"`
 	Color        string `yaml:"color"`
-	PreviousName string `yaml:"previous_name"`
+	PreviousName string `yaml:"previous_name,omitempty"`
 }
 
 // Labels represents a collection of Label
@@ -62,7 +62,8 @@ type CLI struct {
 
 type Option struct {
 	DryRun  bool   `long:"dry-run" description:"Just dry run"`
-	Config  string `short:"c" long:"config" description:"Just dry run" default:"labels.yaml"`
+	Config  string `short:"c" long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
+	Import  bool   `long:"import" description:"Path to import labels existing on GitHub"`
 	Version bool   `long:"version" description:"Show version"`
 }
 
@@ -336,6 +337,33 @@ func (c *CLI) Run(args []string) error {
 
 	c.Client = gc
 	c.Config = m
+
+	if c.Option.Import {
+		if len(c.Config.Repos) == 0 {
+			return fmt.Errorf("no repos found in %s", c.Option.Config)
+		}
+		var m Manifest
+		for _, repo := range c.Config.Repos {
+			e := strings.Split(repo.Name, "/")
+			if len(e) != 2 {
+				// TODO: handle error
+				continue
+			}
+			labels, err := c.Client.Label.List(e[0], e[1])
+			if err != nil {
+				// TODO: handle error
+				continue
+			}
+			m.Repos = append(m.Repos, repo)
+			m.Labels = append(m.Labels, labels...)
+		}
+		f, err := os.Create(c.Option.Config)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		return yaml.NewEncoder(f).Encode(&m)
+	}
 
 	eg := errgroup.Group{}
 	for _, repo := range c.Config.Repos {
