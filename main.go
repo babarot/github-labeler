@@ -15,6 +15,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-github/github"
 	"github.com/jessevdk/go-flags"
 )
@@ -63,7 +64,8 @@ type CLI struct {
 type Option struct {
 	DryRun  bool   `long:"dry-run" description:"Just dry run"`
 	Config  string `short:"c" long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
-	Import  bool   `long:"import" description:"Path to import labels existing on GitHub"`
+	Import  bool   `long:"import" description:"Import existing labels if enabled"`
+	Diff    bool   `long:"diff" description:"Show if the diff between described labels in YAML config file and existing labels exists"`
 	Version bool   `long:"version" description:"Show version"`
 }
 
@@ -305,6 +307,25 @@ func run(args []string) int {
 	return 0
 }
 
+func (c *CLI) CurrentLabels() Manifest {
+	var m Manifest
+	for _, repo := range c.Config.Repos {
+		e := strings.Split(repo.Name, "/")
+		if len(e) != 2 {
+			// TODO: handle error
+			continue
+		}
+		labels, err := c.Client.Label.List(e[0], e[1])
+		if err != nil {
+			// TODO: handle error
+			continue
+		}
+		m.Repos = append(m.Repos, repo)
+		m.Labels = append(m.Labels, labels...)
+	}
+	return m
+}
+
 func (c *CLI) Run(args []string) error {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
@@ -342,27 +363,26 @@ func (c *CLI) Run(args []string) error {
 		if len(c.Config.Repos) == 0 {
 			return fmt.Errorf("no repos found in %s", c.Option.Config)
 		}
-		var m Manifest
-		for _, repo := range c.Config.Repos {
-			e := strings.Split(repo.Name, "/")
-			if len(e) != 2 {
-				// TODO: handle error
-				continue
-			}
-			labels, err := c.Client.Label.List(e[0], e[1])
-			if err != nil {
-				// TODO: handle error
-				continue
-			}
-			m.Repos = append(m.Repos, repo)
-			m.Labels = append(m.Labels, labels...)
-		}
+		m := c.CurrentLabels()
 		f, err := os.Create(c.Option.Config)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
 		return yaml.NewEncoder(f).Encode(&m)
+	}
+
+	if c.Option.Diff {
+		if len(c.Config.Repos) == 0 {
+			return fmt.Errorf("no repos found in %s", c.Option.Config)
+		}
+		m := c.CurrentLabels()
+		if cmp.Equal(m, c.Config) {
+			return nil
+		}
+		// TODO: import diff
+		// yamldiff, dyff
+		return errors.New("diff exists")
 	}
 
 	eg := errgroup.Group{}
