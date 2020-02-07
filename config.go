@@ -9,8 +9,8 @@ import (
 
 // Config represents the YAML file described about labels and repos
 type Config struct {
-	Labels Labels `yaml:"labels"`
-	Repos  Repos  `yaml:"repos"`
+	Labels []Label `yaml:"labels"`
+	Repos  Repos   `yaml:"repos"`
 }
 
 func loadConfig(path string) (Config, error) {

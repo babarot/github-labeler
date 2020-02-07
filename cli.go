@@ -20,8 +20,9 @@ type CLI struct {
 	Stderr io.Writer
 	Option Option
 
-	GitHub *App
-	Config Config
+	Labeler Labeler
+	Logger  *log.Logger
+	Config  Config
 }
 
 type Option struct {
@@ -29,11 +30,6 @@ type Option struct {
 	Config  string `long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
 	Import  bool   `long:"import" description:"Import existing labels if enabled"`
 	Version bool   `long:"version" description:"Show version"`
-}
-
-type App struct {
-	Labeler Labeler
-	logger  *log.Logger
 }
 
 func (c *CLI) Run(args []string) error {
@@ -52,19 +48,15 @@ func (c *CLI) Run(args []string) error {
 	if err != nil {
 		return err
 	}
+	c.Config = cfg
 
-	gc := &App{
-		Labeler: githubClientImpl{client},
-		logger:  log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
-	}
+	c.Labeler = githubClientImpl{client}
+	c.Logger = log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime)
 
 	if c.Option.DryRun {
-		gc.Labeler = githubClientDryRun{client}
-		gc.logger.SetPrefix("labeler (dry-run): ")
+		c.Labeler = githubClientDryRun{client}
+		c.Logger.SetPrefix("labeler (dry-run): ")
 	}
-
-	c.GitHub = gc
-	c.Config = cfg
 
 	if len(c.Config.Repos) == 0 {
 		return fmt.Errorf("no repos found in %s", c.Option.Config)
@@ -73,7 +65,7 @@ func (c *CLI) Run(args []string) error {
 	actual := c.ActualConfig()
 	if cmp.Equal(actual, c.Config) {
 		// no need to sync
-		gc.logger.Printf("Claimed config and actual config is the same")
+		c.Logger.Printf("Claimed config and actual config is the same")
 		return nil
 	}
 
@@ -99,13 +91,13 @@ func (c *CLI) Run(args []string) error {
 
 // applyLabels creates/edits labels described in YAML
 func (c *CLI) applyLabels(owner, repo string, label Label) error {
-	ghLabel, err := c.GitHub.GetLabel(owner, repo, label)
+	ghLabel, err := c.GetLabel(owner, repo, label)
 	if err != nil {
-		return c.GitHub.CreateLabel(owner, repo, label)
+		return c.CreateLabel(owner, repo, label)
 	}
 
 	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
-		return c.GitHub.EditLabel(owner, repo, label)
+		return c.EditLabel(owner, repo, label)
 	}
 
 	return nil
@@ -113,7 +105,7 @@ func (c *CLI) applyLabels(owner, repo string, label Label) error {
 
 // deleteLabels deletes the label not described in YAML but exists on GitHub
 func (c *CLI) deleteLabels(owner, repo string) error {
-	labels, err := c.GitHub.ListLabels(owner, repo)
+	labels, err := c.ListLabels(owner, repo)
 	if err != nil {
 		return err
 	}
@@ -123,7 +115,7 @@ func (c *CLI) deleteLabels(owner, repo string) error {
 			// no need to delete
 			continue
 		}
-		err := c.GitHub.DeleteLabel(owner, repo, label)
+		err := c.DeleteLabel(owner, repo, label)
 		if err != nil {
 			return err
 		}
@@ -159,7 +151,7 @@ func (c *CLI) ActualConfig() Config {
 			// TODO: handle error
 			continue
 		}
-		labels, err := c.GitHub.ListLabels(slugs[0], slugs[1])
+		labels, err := c.ListLabels(slugs[0], slugs[1])
 		if err != nil {
 			// TODO: handle error
 			continue
