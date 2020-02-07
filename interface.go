@@ -1,47 +1,63 @@
 package main
 
 import (
-	"io"
+	"context"
+
+	"github.com/google/go-github/github"
 )
 
-// Manifest represents the YAML file described about labels and repos
-type Manifest struct {
-	Labels Labels `yaml:"labels"`
-	Repos  Repos  `yaml:"repos"`
+type Labeler interface {
+	GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error)
+	EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error)
+	CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error)
+	ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error)
+	DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error)
 }
 
-// Label represents GitHub label
-type Label struct {
-	Name         string `yaml:"name"`
-	Description  string `yaml:"description"`
-	Color        string `yaml:"color"`
-	PreviousName string `yaml:"previous_name,omitempty"`
+type githubClientImpl struct {
+	ghClient *github.Client
 }
 
-// Labels represents a collection of Label
-type Labels []Label
-
-// Repo represents GitHub repository
-type Repo struct {
-	Name   string   `yaml:"name"`
-	Labels []string `yaml:"labels"`
+func (l githubClientImpl) GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error) {
+	return l.ghClient.Issues.GetLabel(ctx, owner, repo, name)
 }
 
-// Repos represents a collection of Repo
-type Repos []Repo
-
-type CLI struct {
-	Stdout io.Writer
-	Stderr io.Writer
-	Option Option
-
-	GitHub *githubClient
-	Config Manifest
+func (l githubClientImpl) EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error) {
+	return l.ghClient.Issues.EditLabel(ctx, owner, repo, name, label)
 }
 
-type Option struct {
-	DryRun  bool   `long:"dry-run" description:"Just dry run"`
-	Config  string `short:"c" long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
-	Import  bool   `long:"import" description:"Import existing labels if enabled"`
-	Version bool   `long:"version" description:"Show version"`
+func (l githubClientImpl) CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error) {
+	return l.ghClient.Issues.CreateLabel(ctx, owner, repo, label)
+}
+
+func (l githubClientImpl) ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error) {
+	return l.ghClient.Issues.ListLabels(ctx, owner, repo, opt)
+}
+
+func (l githubClientImpl) DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error) {
+	return l.ghClient.Issues.DeleteLabel(ctx, owner, repo, name)
+}
+
+type githubClientDryRun struct {
+	ghClient *github.Client
+}
+
+func (l githubClientDryRun) GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error) {
+	return l.ghClient.Issues.GetLabel(ctx, owner, repo, name)
+}
+
+func (l githubClientDryRun) EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error) {
+	return nil, nil, nil
+}
+
+func (l githubClientDryRun) CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error) {
+	return nil, nil, nil
+}
+
+func (l githubClientDryRun) ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error) {
+	return l.ghClient.Issues.ListLabels(ctx, owner, repo, opt)
+}
+
+func (l githubClientDryRun) DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error) {
+	return nil, nil
 }

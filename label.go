@@ -6,6 +6,26 @@ import (
 	"github.com/google/go-github/github"
 )
 
+// Label represents GitHub label
+type Label struct {
+	Name         string `yaml:"name"`
+	Description  string `yaml:"description"`
+	Color        string `yaml:"color"`
+	PreviousName string `yaml:"previous_name,omitempty"`
+}
+
+// Labels represents a collection of Label
+type Labels []Label
+
+// Repo represents GitHub repository
+type Repo struct {
+	Name   string   `yaml:"name"`
+	Labels []string `yaml:"labels"`
+}
+
+// Repos represents a collection of Repo
+type Repos []Repo
+
 // Get gets GitHub labels
 func (c *githubClient) GetLabel(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()

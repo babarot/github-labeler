@@ -7,6 +7,12 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// Manifest represents the YAML file described about labels and repos
+type Manifest struct {
+	Labels Labels `yaml:"labels"`
+	Repos  Repos  `yaml:"repos"`
+}
+
 func loadManifest(path string) (Manifest, error) {
 	var m Manifest
 	buf, err := ioutil.ReadFile(path)
