@@ -20,7 +20,7 @@ type CLI struct {
 	Stderr io.Writer
 	Option Option
 
-	GitHub *githubClient
+	GitHub *app
 	Config Manifest
 }
 
@@ -31,7 +31,7 @@ type Option struct {
 	Version bool   `long:"version" description:"Show version"`
 }
 
-type githubClient struct {
+type app struct {
 	Labeler Labeler
 	logger  *log.Logger
 }
@@ -53,7 +53,7 @@ func (c *CLI) Run(args []string) error {
 		return err
 	}
 
-	gc := &githubClient{
+	gc := &app{
 		Labeler: githubClientImpl{client},
 		logger:  log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
 	}
@@ -153,12 +153,12 @@ func (c *CLI) Sync(repo Repo) error {
 func (c *CLI) CurrentLabels() Manifest {
 	var m Manifest
 	for _, repo := range c.Config.Repos {
-		e := strings.Split(repo.Name, "/")
-		if len(e) != 2 {
+		slugs := strings.Split(repo.Name, "/")
+		if len(slugs) != 2 {
 			// TODO: handle error
 			continue
 		}
-		labels, err := c.GitHub.ListLabels(e[0], e[1])
+		labels, err := c.GitHub.ListLabels(slugs[0], slugs[1])
 		if err != nil {
 			// TODO: handle error
 			continue

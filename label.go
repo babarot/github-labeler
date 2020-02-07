@@ -26,10 +26,9 @@ type Repo struct {
 // Repos represents a collection of Repo
 type Repos []Repo
 
-// Get gets GitHub labels
-func (c *githubClient) GetLabel(owner, repo string, label Label) (Label, error) {
+func (a *app) GetLabel(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
-	ghLabel, _, err := c.Labeler.GetLabel(ctx, owner, repo, label.Name)
+	ghLabel, _, err := a.Labeler.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
 		return Label{}, err
 	}
@@ -40,8 +39,7 @@ func (c *githubClient) GetLabel(owner, repo string, label Label) (Label, error) 
 	}, nil
 }
 
-// Create creates GitHub labels
-func (c *githubClient) CreateLabel(owner, repo string, label Label) error {
+func (a *app) CreateLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
@@ -49,35 +47,33 @@ func (c *githubClient) CreateLabel(owner, repo string, label Label) error {
 		Color:       github.String(label.Color),
 	}
 	if len(label.PreviousName) > 0 {
-		c.logger.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
-		_, _, err := c.Labeler.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
+		a.logger.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
+		_, _, err := a.Labeler.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
 		return err
 	}
-	c.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
-	_, _, err := c.Labeler.CreateLabel(ctx, owner, repo, ghLabel)
+	a.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
+	_, _, err := a.Labeler.CreateLabel(ctx, owner, repo, ghLabel)
 	return err
 }
 
-// Edit edits GitHub labels
-func (c *githubClient) EditLabel(owner, repo string, label Label) error {
+func (a *app) EditLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
 		Description: github.String(label.Description),
 		Color:       github.String(label.Color),
 	}
-	c.logger.Printf("edit %q in %s/%s", label.Name, owner, repo)
-	_, _, err := c.Labeler.EditLabel(ctx, owner, repo, label.Name, ghLabel)
+	a.logger.Printf("edit %q in %s/%s", label.Name, owner, repo)
+	_, _, err := a.Labeler.EditLabel(ctx, owner, repo, label.Name, ghLabel)
 	return err
 }
 
-// List lists GitHub labels
-func (c *githubClient) ListLabels(owner, repo string) ([]Label, error) {
+func (a *app) ListLabels(owner, repo string) ([]Label, error) {
 	ctx := context.Background()
 	opt := &github.ListOptions{PerPage: 10}
 	var labels []Label
 	for {
-		ghLabels, resp, err := c.Labeler.ListLabels(ctx, owner, repo, opt)
+		ghLabels, resp, err := a.Labeler.ListLabels(ctx, owner, repo, opt)
 		if err != nil {
 			return labels, err
 		}
@@ -96,10 +92,9 @@ func (c *githubClient) ListLabels(owner, repo string) ([]Label, error) {
 	return labels, nil
 }
 
-// Delete deletes GitHub labels
-func (c *githubClient) DeleteLabel(owner, repo string, label Label) error {
+func (a *app) DeleteLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
-	c.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
-	_, err := c.Labeler.DeleteLabel(ctx, owner, repo, label.Name)
+	a.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
+	_, err := a.Labeler.DeleteLabel(ctx, owner, repo, label.Name)
 	return err
 }
