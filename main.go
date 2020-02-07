@@ -104,7 +104,7 @@ func (m Manifest) checkIfRepoHasLabel(repoName, labelName string) bool {
 }
 
 type githubClient struct {
-	*github.Client
+	github *github.Client
 
 	dryRun bool
 	logger *log.Logger
@@ -122,16 +122,10 @@ type service struct {
 	client *githubClient
 }
 
-// Labeler is label-maker instance
-type Labeler struct {
-	github   *githubClient
-	manifest Manifest
-}
-
 // Get gets GitHub labels
 func (g *LabelService) Get(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
-	ghLabel, _, err := g.client.Issues.GetLabel(ctx, owner, repo, label.Name)
+	ghLabel, _, err := g.client.github.Issues.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
 		return Label{}, err
 	}
@@ -155,14 +149,14 @@ func (g *LabelService) Create(owner, repo string, label Label) error {
 		if g.client.dryRun {
 			return nil
 		}
-		_, _, err := g.client.Issues.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
+		_, _, err := g.client.github.Issues.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
 		return err
 	}
 	g.client.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
 	if g.client.dryRun {
 		return nil
 	}
-	_, _, err := g.client.Issues.CreateLabel(ctx, owner, repo, ghLabel)
+	_, _, err := g.client.github.Issues.CreateLabel(ctx, owner, repo, ghLabel)
 	return err
 }
 
@@ -178,7 +172,7 @@ func (g *LabelService) Edit(owner, repo string, label Label) error {
 	if g.client.dryRun {
 		return nil
 	}
-	_, _, err := g.client.Issues.EditLabel(ctx, owner, repo, label.Name, ghLabel)
+	_, _, err := g.client.github.Issues.EditLabel(ctx, owner, repo, label.Name, ghLabel)
 	return err
 }
 
@@ -188,7 +182,7 @@ func (g *LabelService) List(owner, repo string) ([]Label, error) {
 	opt := &github.ListOptions{PerPage: 10}
 	var labels []Label
 	for {
-		ghLabels, resp, err := g.client.Issues.ListLabels(ctx, owner, repo, opt)
+		ghLabels, resp, err := g.client.github.Issues.ListLabels(ctx, owner, repo, opt)
 		if err != nil {
 			return labels, err
 		}
@@ -214,7 +208,7 @@ func (g *LabelService) Delete(owner, repo string, label Label) error {
 	if g.client.dryRun {
 		return nil
 	}
-	_, err := g.client.Issues.DeleteLabel(ctx, owner, repo, label.Name)
+	_, err := g.client.github.Issues.DeleteLabel(ctx, owner, repo, label.Name)
 	return err
 }
 
@@ -348,7 +342,7 @@ func (c *CLI) Run(args []string) error {
 	}
 
 	gc := &githubClient{
-		Client: client,
+		github: client,
 		dryRun: c.Option.DryRun,
 		logger: log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
 	}
