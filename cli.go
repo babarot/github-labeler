@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -13,6 +14,67 @@ import (
 	"golang.org/x/sync/errgroup"
 	yaml "gopkg.in/yaml.v2"
 )
+
+type Labeler interface {
+	GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error)
+	EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error)
+	CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error)
+	ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error)
+	DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error)
+}
+
+type githubClientImpl struct {
+	GitHub *github.Client
+}
+
+func (l githubClientImpl) GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error) {
+	return l.GitHub.Issues.GetLabel(ctx, owner, repo, name)
+}
+
+func (l githubClientImpl) EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error) {
+	return l.GitHub.Issues.EditLabel(ctx, owner, repo, name, label)
+}
+
+func (l githubClientImpl) CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error) {
+	return l.GitHub.Issues.CreateLabel(ctx, owner, repo, label)
+}
+
+func (l githubClientImpl) ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error) {
+	return l.GitHub.Issues.ListLabels(ctx, owner, repo, opt)
+}
+
+func (l githubClientImpl) DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error) {
+	return l.GitHub.Issues.DeleteLabel(ctx, owner, repo, name)
+}
+
+type githubClientDryRun struct {
+	GitHub *github.Client
+}
+
+func (l githubClientDryRun) GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error) {
+	return l.GitHub.Issues.GetLabel(ctx, owner, repo, name)
+}
+
+func (l githubClientDryRun) EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error) {
+	return nil, nil, nil
+}
+
+func (l githubClientDryRun) CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error) {
+	return nil, nil, nil
+}
+
+func (l githubClientDryRun) ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error) {
+	return l.GitHub.Issues.ListLabels(ctx, owner, repo, opt)
+}
+
+func (l githubClientDryRun) DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error) {
+	return nil, nil
+}
+
+type githubClient struct {
+	Labeler Labeler
+	logger  *log.Logger
+}
 
 func (c *CLI) Run(args []string) error {
 	token := os.Getenv("GITHUB_TOKEN")
@@ -32,16 +94,16 @@ func (c *CLI) Run(args []string) error {
 	}
 
 	gc := &githubClient{
-		Client: client,
-		dryRun: c.Option.DryRun,
-		logger: log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
+		Labeler: githubClientImpl{client},
+		logger:  log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
 	}
 
 	if c.Option.DryRun {
+		gc.Labeler = githubClientDryRun{client}
 		gc.logger.SetPrefix("labeler (dry-run): ")
 	}
 
-	c.Client = gc
+	c.GitHub = gc
 	c.Config = m
 
 	if len(c.Config.Repos) == 0 {
@@ -76,13 +138,13 @@ func (c *CLI) Run(args []string) error {
 
 // applyLabels creates/edits labels described in YAML
 func (c *CLI) applyLabels(owner, repo string, label Label) error {
-	ghLabel, err := c.Client.GetLabel(owner, repo, label)
+	ghLabel, err := c.GitHub.GetLabel(owner, repo, label)
 	if err != nil {
-		return c.Client.CreateLabel(owner, repo, label)
+		return c.GitHub.CreateLabel(owner, repo, label)
 	}
 
 	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
-		return c.Client.EditLabel(owner, repo, label)
+		return c.GitHub.EditLabel(owner, repo, label)
 	}
 
 	return nil
@@ -90,7 +152,7 @@ func (c *CLI) applyLabels(owner, repo string, label Label) error {
 
 // deleteLabels deletes the label not described in YAML but exists on GitHub
 func (c *CLI) deleteLabels(owner, repo string) error {
-	labels, err := c.Client.ListLabels(owner, repo)
+	labels, err := c.GitHub.ListLabels(owner, repo)
 	if err != nil {
 		return err
 	}
@@ -100,7 +162,7 @@ func (c *CLI) deleteLabels(owner, repo string) error {
 			// no need to delete
 			continue
 		}
-		err := c.Client.DeleteLabel(owner, repo, label)
+		err := c.GitHub.DeleteLabel(owner, repo, label)
 		if err != nil {
 			return err
 		}
@@ -136,7 +198,7 @@ func (c *CLI) CurrentLabels() Manifest {
 			// TODO: handle error
 			continue
 		}
-		labels, err := c.Client.ListLabels(e[0], e[1])
+		labels, err := c.GitHub.ListLabels(e[0], e[1])
 		if err != nil {
 			// TODO: handle error
 			continue

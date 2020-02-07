@@ -9,7 +9,7 @@ import (
 // Get gets GitHub labels
 func (c *githubClient) GetLabel(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
-	ghLabel, _, err := c.Issues.GetLabel(ctx, owner, repo, label.Name)
+	ghLabel, _, err := c.Labeler.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
 		return Label{}, err
 	}
@@ -30,17 +30,11 @@ func (c *githubClient) CreateLabel(owner, repo string, label Label) error {
 	}
 	if len(label.PreviousName) > 0 {
 		c.logger.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
-		if c.dryRun {
-			return nil
-		}
-		_, _, err := c.Issues.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
+		_, _, err := c.Labeler.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
 		return err
 	}
 	c.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
-	if c.dryRun {
-		return nil
-	}
-	_, _, err := c.Issues.CreateLabel(ctx, owner, repo, ghLabel)
+	_, _, err := c.Labeler.CreateLabel(ctx, owner, repo, ghLabel)
 	return err
 }
 
@@ -53,10 +47,7 @@ func (c *githubClient) EditLabel(owner, repo string, label Label) error {
 		Color:       github.String(label.Color),
 	}
 	c.logger.Printf("edit %q in %s/%s", label.Name, owner, repo)
-	if c.dryRun {
-		return nil
-	}
-	_, _, err := c.Issues.EditLabel(ctx, owner, repo, label.Name, ghLabel)
+	_, _, err := c.Labeler.EditLabel(ctx, owner, repo, label.Name, ghLabel)
 	return err
 }
 
@@ -66,7 +57,7 @@ func (c *githubClient) ListLabels(owner, repo string) ([]Label, error) {
 	opt := &github.ListOptions{PerPage: 10}
 	var labels []Label
 	for {
-		ghLabels, resp, err := c.Issues.ListLabels(ctx, owner, repo, opt)
+		ghLabels, resp, err := c.Labeler.ListLabels(ctx, owner, repo, opt)
 		if err != nil {
 			return labels, err
 		}
@@ -89,9 +80,6 @@ func (c *githubClient) ListLabels(owner, repo string) ([]Label, error) {
 func (c *githubClient) DeleteLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	c.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
-	if c.dryRun {
-		return nil
-	}
-	_, err := c.Issues.DeleteLabel(ctx, owner, repo, label.Name)
+	_, err := c.Labeler.DeleteLabel(ctx, owner, repo, label.Name)
 	return err
 }
