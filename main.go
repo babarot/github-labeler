@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"errors"
-	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/google/go-github/github"
+	"github.com/jessevdk/go-flags"
 )
 
 // These variables are set in Goreleaser
@@ -49,6 +50,21 @@ type Repo struct {
 
 // Repos represents a collection of Repo
 type Repos []Repo
+
+type CLI struct {
+	Stdout io.Writer
+	Stderr io.Writer
+	Option Option
+
+	Client *githubClient
+	Config Manifest
+}
+
+type Option struct {
+	DryRun  bool   `long:"dry-run" description:"Just dry run"`
+	Config  string `short:"c" long:"config" description:"Just dry run" default:"labels.yaml"`
+	Version bool   `long:"version" description:"Show version"`
+}
 
 func loadManifest(path string) (Manifest, error) {
 	var m Manifest
@@ -201,32 +217,32 @@ func (g *LabelService) Delete(owner, repo string, label Label) error {
 }
 
 // applyLabels creates/edits labels described in YAML
-func (l Labeler) applyLabels(owner, repo string, label Label) error {
-	ghLabel, err := l.github.Label.Get(owner, repo, label)
+func (c *CLI) applyLabels(owner, repo string, label Label) error {
+	ghLabel, err := c.Client.Label.Get(owner, repo, label)
 	if err != nil {
-		return l.github.Label.Create(owner, repo, label)
+		return c.Client.Label.Create(owner, repo, label)
 	}
 
 	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
-		return l.github.Label.Edit(owner, repo, label)
+		return c.Client.Label.Edit(owner, repo, label)
 	}
 
 	return nil
 }
 
 // deleteLabels deletes the label not described in YAML but exists on GitHub
-func (l Labeler) deleteLabels(owner, repo string) error {
-	labels, err := l.github.Label.List(owner, repo)
+func (c *CLI) deleteLabels(owner, repo string) error {
+	labels, err := c.Client.Label.List(owner, repo)
 	if err != nil {
 		return err
 	}
 
 	for _, label := range labels {
-		if l.manifest.checkIfRepoHasLabel(owner+"/"+repo, label.Name) {
+		if c.Config.checkIfRepoHasLabel(owner+"/"+repo, label.Name) {
 			// no need to delete
 			continue
 		}
-		err := l.github.Label.Delete(owner, repo, label)
+		err := c.Client.Label.Delete(owner, repo, label)
 		if err != nil {
 			return err
 		}
@@ -236,28 +252,62 @@ func (l Labeler) deleteLabels(owner, repo string) error {
 }
 
 // Sync syncs labels based on YAML
-func (l Labeler) Sync(repo Repo) error {
+func (c *CLI) Sync(repo Repo) error {
 	slugs := strings.Split(repo.Name, "/")
 	if len(slugs) != 2 {
 		return fmt.Errorf("repository name %q is invalid", repo.Name)
 	}
 	for _, labelName := range repo.Labels {
-		label, err := l.manifest.getDefinedLabel(labelName)
+		label, err := c.Config.getDefinedLabel(labelName)
 		if err != nil {
 			return err
 		}
-		err = l.applyLabels(slugs[0], slugs[1], label)
+		err = c.applyLabels(slugs[0], slugs[1], label)
 		if err != nil {
 			return err
 		}
 	}
-	return l.deleteLabels(slugs[0], slugs[1])
+	return c.deleteLabels(slugs[0], slugs[1])
 }
 
-func newLabeler(configPath string, dryRun bool) (Labeler, error) {
+func main() {
+	os.Exit(run(os.Args[1:]))
+}
+
+func run(args []string) int {
+	// clilog.Env = "GOMI_LOG"
+	// clilog.SetOutput()
+	// defer log.Printf("[INFO] finish main function")
+	//
+	// log.Printf("[INFO] Version: %s (%s)", Version, Revision)
+	// log.Printf("[INFO] gomiPath: %s", gomiPath)
+	// log.Printf("[INFO] inventoryPath: %s", inventoryPath)
+	// log.Printf("[INFO] Args: %#v", args)
+
+	var opt Option
+	args, err := flags.ParseArgs(&opt, args)
+	if err != nil {
+		return 2
+	}
+
+	cli := CLI{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Option: opt,
+	}
+
+	if err := cli.Run(args); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+
+	return 0
+}
+
+func (c *CLI) Run(args []string) error {
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" {
-		return Labeler{}, errors.New("GITHUB_TOKEN is missing")
+		return errors.New("GITHUB_TOKEN is missing")
 	}
 
 	ts := oauth2.StaticTokenSource(&oauth2.Token{
@@ -266,51 +316,34 @@ func newLabeler(configPath string, dryRun bool) (Labeler, error) {
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 	client := github.NewClient(tc)
 
-	m, err := loadManifest(configPath)
+	m, err := loadManifest(c.Option.Config)
 	if err != nil {
-		return Labeler{}, err
+		return err
 	}
 
 	gc := &githubClient{
 		Client: client,
-		dryRun: dryRun,
+		dryRun: c.Option.DryRun,
 		logger: log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
 	}
-	if dryRun {
+
+	if c.Option.DryRun {
 		gc.logger.SetPrefix("labeler (dry-run): ")
-		// gc.logger = log.New(os.Stdout, "labeler (dry-run): ", 0)
 	}
+
 	gc.common.client = gc
 	gc.Label = (*LabelService)(&gc.common)
-	return Labeler{
-		github:   gc,
-		manifest: m,
-	}, nil
-}
 
-func main() {
-	var (
-		manifest = flag.String("manifest", "labels.yaml", "YAML file to be described about labels and repos")
-		dryRun   = flag.Bool("dry-run", false, "dry run flag")
-	)
-	flag.Parse()
-
-	labeler, err := newLabeler(*manifest, *dryRun)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err.Error())
-		os.Exit(1)
-	}
+	c.Client = gc
+	c.Config = m
 
 	eg := errgroup.Group{}
-	for _, repo := range labeler.manifest.Repos {
+	for _, repo := range c.Config.Repos {
 		repo := repo
 		eg.Go(func() error {
-			return labeler.Sync(repo)
+			return c.Sync(repo)
 		})
 	}
 
-	if err := eg.Wait(); err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR] %v\n", err.Error())
-		os.Exit(1)
-	}
+	return eg.Wait()
 }
