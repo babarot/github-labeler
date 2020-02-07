@@ -70,19 +70,20 @@ func (c *CLI) Run(args []string) error {
 		return fmt.Errorf("no repos found in %s", c.Option.Config)
 	}
 
+	actual := c.ActualConfig()
+	if cmp.Equal(actual, c.Config) {
+		// no need to sync
+		gc.logger.Printf("Claimed config and actual config is the same")
+		return nil
+	}
+
 	if c.Option.Import {
-		cfg := c.CurrentLabels()
 		f, err := os.Create(c.Option.Config)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		return yaml.NewEncoder(f).Encode(&cfg)
-	}
-
-	if cmp.Equal(c.CurrentLabels(), c.Config) {
-		// no need to sync
-		return nil
+		return yaml.NewEncoder(f).Encode(&actual)
 	}
 
 	eg := errgroup.Group{}
@@ -150,7 +151,7 @@ func (c *CLI) Sync(repo Repo) error {
 	return c.deleteLabels(slugs[0], slugs[1])
 }
 
-func (c *CLI) CurrentLabels() Config {
+func (c *CLI) ActualConfig() Config {
 	var cfg Config
 	for _, repo := range c.Config.Repos {
 		slugs := strings.Split(repo.Name, "/")
