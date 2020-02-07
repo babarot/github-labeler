@@ -24,35 +24,35 @@ type Labeler interface {
 }
 
 type githubClientImpl struct {
-	GitHub *github.Client
+	ghClient *github.Client
 }
 
 func (l githubClientImpl) GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error) {
-	return l.GitHub.Issues.GetLabel(ctx, owner, repo, name)
+	return l.ghClient.Issues.GetLabel(ctx, owner, repo, name)
 }
 
 func (l githubClientImpl) EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error) {
-	return l.GitHub.Issues.EditLabel(ctx, owner, repo, name, label)
+	return l.ghClient.Issues.EditLabel(ctx, owner, repo, name, label)
 }
 
 func (l githubClientImpl) CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error) {
-	return l.GitHub.Issues.CreateLabel(ctx, owner, repo, label)
+	return l.ghClient.Issues.CreateLabel(ctx, owner, repo, label)
 }
 
 func (l githubClientImpl) ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error) {
-	return l.GitHub.Issues.ListLabels(ctx, owner, repo, opt)
+	return l.ghClient.Issues.ListLabels(ctx, owner, repo, opt)
 }
 
 func (l githubClientImpl) DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error) {
-	return l.GitHub.Issues.DeleteLabel(ctx, owner, repo, name)
+	return l.ghClient.Issues.DeleteLabel(ctx, owner, repo, name)
 }
 
 type githubClientDryRun struct {
-	GitHub *github.Client
+	ghClient *github.Client
 }
 
 func (l githubClientDryRun) GetLabel(ctx context.Context, owner string, repo string, name string) (*github.Label, *github.Response, error) {
-	return l.GitHub.Issues.GetLabel(ctx, owner, repo, name)
+	return l.ghClient.Issues.GetLabel(ctx, owner, repo, name)
 }
 
 func (l githubClientDryRun) EditLabel(ctx context.Context, owner string, repo string, name string, label *github.Label) (*github.Label, *github.Response, error) {
@@ -64,7 +64,7 @@ func (l githubClientDryRun) CreateLabel(ctx context.Context, owner string, repo 
 }
 
 func (l githubClientDryRun) ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error) {
-	return l.GitHub.Issues.ListLabels(ctx, owner, repo, opt)
+	return l.ghClient.Issues.ListLabels(ctx, owner, repo, opt)
 }
 
 func (l githubClientDryRun) DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error) {
