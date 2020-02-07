@@ -51,15 +51,10 @@ type Option struct {
 }
 
 type githubClient struct {
-	// github *github.Client
-	github *github.Client
+	*github.Client
 
 	dryRun bool
 	logger *log.Logger
-
-	common service
-
-	Label *LabelService
 }
 
 type Labeler interface {
@@ -74,12 +69,4 @@ type Labeler interface {
 	CreateLabel(ctx context.Context, owner string, repo string, label *github.Label) (*github.Label, *github.Response, error)
 	ListLabels(ctx context.Context, owner string, repo string, opt *github.ListOptions) ([]*github.Label, *github.Response, error)
 	DeleteLabel(ctx context.Context, owner string, repo string, name string) (*github.Response, error)
-}
-
-// LabelService handles communication with the label related
-// methods of GitHub API
-type LabelService service
-
-type service struct {
-	client *githubClient
 }

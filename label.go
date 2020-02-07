@@ -7,9 +7,9 @@ import (
 )
 
 // Get gets GitHub labels
-func (g *LabelService) Get(owner, repo string, label Label) (Label, error) {
+func (c *githubClient) GetLabel(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
-	ghLabel, _, err := g.client.github.Issues.GetLabel(ctx, owner, repo, label.Name)
+	ghLabel, _, err := c.Issues.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
 		return Label{}, err
 	}
@@ -21,7 +21,7 @@ func (g *LabelService) Get(owner, repo string, label Label) (Label, error) {
 }
 
 // Create creates GitHub labels
-func (g *LabelService) Create(owner, repo string, label Label) error {
+func (c *githubClient) CreateLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
@@ -29,44 +29,44 @@ func (g *LabelService) Create(owner, repo string, label Label) error {
 		Color:       github.String(label.Color),
 	}
 	if len(label.PreviousName) > 0 {
-		g.client.logger.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
-		if g.client.dryRun {
+		c.logger.Printf("rename %q in %s/%s to %q", label.PreviousName, owner, repo, label.Name)
+		if c.dryRun {
 			return nil
 		}
-		_, _, err := g.client.github.Issues.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
+		_, _, err := c.Issues.EditLabel(ctx, owner, repo, label.PreviousName, ghLabel)
 		return err
 	}
-	g.client.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
-	if g.client.dryRun {
+	c.logger.Printf("create %q in %s/%s", label.Name, owner, repo)
+	if c.dryRun {
 		return nil
 	}
-	_, _, err := g.client.github.Issues.CreateLabel(ctx, owner, repo, ghLabel)
+	_, _, err := c.Issues.CreateLabel(ctx, owner, repo, ghLabel)
 	return err
 }
 
 // Edit edits GitHub labels
-func (g *LabelService) Edit(owner, repo string, label Label) error {
+func (c *githubClient) EditLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
 		Description: github.String(label.Description),
 		Color:       github.String(label.Color),
 	}
-	g.client.logger.Printf("edit %q in %s/%s", label.Name, owner, repo)
-	if g.client.dryRun {
+	c.logger.Printf("edit %q in %s/%s", label.Name, owner, repo)
+	if c.dryRun {
 		return nil
 	}
-	_, _, err := g.client.github.Issues.EditLabel(ctx, owner, repo, label.Name, ghLabel)
+	_, _, err := c.Issues.EditLabel(ctx, owner, repo, label.Name, ghLabel)
 	return err
 }
 
 // List lists GitHub labels
-func (g *LabelService) List(owner, repo string) ([]Label, error) {
+func (c *githubClient) ListLabels(owner, repo string) ([]Label, error) {
 	ctx := context.Background()
 	opt := &github.ListOptions{PerPage: 10}
 	var labels []Label
 	for {
-		ghLabels, resp, err := g.client.github.Issues.ListLabels(ctx, owner, repo, opt)
+		ghLabels, resp, err := c.Issues.ListLabels(ctx, owner, repo, opt)
 		if err != nil {
 			return labels, err
 		}
@@ -86,12 +86,12 @@ func (g *LabelService) List(owner, repo string) ([]Label, error) {
 }
 
 // Delete deletes GitHub labels
-func (g *LabelService) Delete(owner, repo string, label Label) error {
+func (c *githubClient) DeleteLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
-	g.client.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
-	if g.client.dryRun {
+	c.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
+	if c.dryRun {
 		return nil
 	}
-	_, err := g.client.github.Issues.DeleteLabel(ctx, owner, repo, label.Name)
+	_, err := c.Issues.DeleteLabel(ctx, owner, repo, label.Name)
 	return err
 }

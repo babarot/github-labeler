@@ -32,7 +32,7 @@ func (c *CLI) Run(args []string) error {
 	}
 
 	gc := &githubClient{
-		github: client,
+		Client: client,
 		dryRun: c.Option.DryRun,
 		logger: log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
 	}
@@ -40,9 +40,6 @@ func (c *CLI) Run(args []string) error {
 	if c.Option.DryRun {
 		gc.logger.SetPrefix("labeler (dry-run): ")
 	}
-
-	gc.common.client = gc
-	gc.Label = (*LabelService)(&gc.common)
 
 	c.Client = gc
 	c.Config = m
@@ -79,13 +76,13 @@ func (c *CLI) Run(args []string) error {
 
 // applyLabels creates/edits labels described in YAML
 func (c *CLI) applyLabels(owner, repo string, label Label) error {
-	ghLabel, err := c.Client.Label.Get(owner, repo, label)
+	ghLabel, err := c.Client.GetLabel(owner, repo, label)
 	if err != nil {
-		return c.Client.Label.Create(owner, repo, label)
+		return c.Client.CreateLabel(owner, repo, label)
 	}
 
 	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
-		return c.Client.Label.Edit(owner, repo, label)
+		return c.Client.EditLabel(owner, repo, label)
 	}
 
 	return nil
@@ -93,7 +90,7 @@ func (c *CLI) applyLabels(owner, repo string, label Label) error {
 
 // deleteLabels deletes the label not described in YAML but exists on GitHub
 func (c *CLI) deleteLabels(owner, repo string) error {
-	labels, err := c.Client.Label.List(owner, repo)
+	labels, err := c.Client.ListLabels(owner, repo)
 	if err != nil {
 		return err
 	}
@@ -103,7 +100,7 @@ func (c *CLI) deleteLabels(owner, repo string) error {
 			// no need to delete
 			continue
 		}
-		err := c.Client.Label.Delete(owner, repo, label)
+		err := c.Client.DeleteLabel(owner, repo, label)
 		if err != nil {
 			return err
 		}
@@ -139,7 +136,7 @@ func (c *CLI) CurrentLabels() Manifest {
 			// TODO: handle error
 			continue
 		}
-		labels, err := c.Client.Label.List(e[0], e[1])
+		labels, err := c.Client.ListLabels(e[0], e[1])
 		if err != nil {
 			// TODO: handle error
 			continue
