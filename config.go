@@ -7,34 +7,34 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-// Manifest represents the YAML file described about labels and repos
-type Manifest struct {
+// Config represents the YAML file described about labels and repos
+type Config struct {
 	Labels Labels `yaml:"labels"`
 	Repos  Repos  `yaml:"repos"`
 }
 
-func loadManifest(path string) (Manifest, error) {
-	var m Manifest
+func loadConfig(path string) (Config, error) {
+	var cfg Config
 	buf, err := ioutil.ReadFile(path)
 	if err != nil {
-		return m, err
+		return cfg, err
 	}
-	err = yaml.Unmarshal(buf, &m)
-	return m, err
+	err = yaml.Unmarshal(buf, &cfg)
+	return cfg, err
 }
 
-func (m Manifest) getDefinedLabel(name string) (Label, error) {
-	for _, label := range m.Labels {
+func (cfg Config) getDefinedLabel(name string) (Label, error) {
+	for _, label := range cfg.Labels {
 		if label.Name == name {
 			return label, nil
 		}
 	}
-	return Label{}, fmt.Errorf("%s: no such defined label in manifest YAML", name)
+	return Label{}, fmt.Errorf("%s: no such defined label in config YAML", name)
 }
 
-func (m Manifest) checkIfRepoHasLabel(repoName, labelName string) bool {
+func (cfg Config) checkIfRepoHasLabel(repoName, labelName string) bool {
 	var labels []string
-	for _, repo := range m.Repos {
+	for _, repo := range cfg.Repos {
 		if repo.Name == repoName {
 			labels = repo.Labels
 			break

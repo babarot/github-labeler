@@ -1,11 +1,11 @@
 #!/bin/bash
 
-manifest=${INPUT_MANIFEST}
+config=${INPUT_CONFIG}
 
 import=${INPUT_IMPORT:-false}
 if ${import}; then
-  github-labeler --import --config=${manifest}
+  github-labeler --import --config=${config}
   exit ${?}
 fi
 
-github-labeler --config=${manifest}
+github-labeler --config=${config}

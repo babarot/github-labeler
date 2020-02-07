@@ -1,7 +1,7 @@
 name: 'github-labeler'
 description: 'Declarative way to configure GitHub labels'
 inputs:
-  manifest:
+  config:
     description: 'Path to YAML file which defines GitHub labels'
     required: false
     default: '.github/labels.yml'

@@ -26,7 +26,7 @@ type Repo struct {
 // Repos represents a collection of Repo
 type Repos []Repo
 
-func (a *app) GetLabel(owner, repo string, label Label) (Label, error) {
+func (a *App) GetLabel(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
 	ghLabel, _, err := a.Labeler.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
@@ -39,7 +39,7 @@ func (a *app) GetLabel(owner, repo string, label Label) (Label, error) {
 	}, nil
 }
 
-func (a *app) CreateLabel(owner, repo string, label Label) error {
+func (a *App) CreateLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
@@ -56,7 +56,7 @@ func (a *app) CreateLabel(owner, repo string, label Label) error {
 	return err
 }
 
-func (a *app) EditLabel(owner, repo string, label Label) error {
+func (a *App) EditLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
@@ -68,7 +68,7 @@ func (a *app) EditLabel(owner, repo string, label Label) error {
 	return err
 }
 
-func (a *app) ListLabels(owner, repo string) ([]Label, error) {
+func (a *App) ListLabels(owner, repo string) ([]Label, error) {
 	ctx := context.Background()
 	opt := &github.ListOptions{PerPage: 10}
 	var labels []Label
@@ -92,7 +92,7 @@ func (a *app) ListLabels(owner, repo string) ([]Label, error) {
 	return labels, nil
 }
 
-func (a *app) DeleteLabel(owner, repo string, label Label) error {
+func (a *App) DeleteLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	a.logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
 	_, err := a.Labeler.DeleteLabel(ctx, owner, repo, label.Name)

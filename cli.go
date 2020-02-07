@@ -20,18 +20,18 @@ type CLI struct {
 	Stderr io.Writer
 	Option Option
 
-	GitHub *app
-	Config Manifest
+	GitHub *App
+	Config Config
 }
 
 type Option struct {
 	DryRun  bool   `long:"dry-run" description:"Just dry run"`
-	Config  string `short:"c" long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
+	Config  string `long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
 	Import  bool   `long:"import" description:"Import existing labels if enabled"`
 	Version bool   `long:"version" description:"Show version"`
 }
 
-type app struct {
+type App struct {
 	Labeler Labeler
 	logger  *log.Logger
 }
@@ -48,12 +48,12 @@ func (c *CLI) Run(args []string) error {
 	tc := oauth2.NewClient(oauth2.NoContext, ts)
 	client := github.NewClient(tc)
 
-	m, err := loadManifest(c.Option.Config)
+	cfg, err := loadConfig(c.Option.Config)
 	if err != nil {
 		return err
 	}
 
-	gc := &app{
+	gc := &App{
 		Labeler: githubClientImpl{client},
 		logger:  log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime),
 	}
@@ -64,20 +64,20 @@ func (c *CLI) Run(args []string) error {
 	}
 
 	c.GitHub = gc
-	c.Config = m
+	c.Config = cfg
 
 	if len(c.Config.Repos) == 0 {
 		return fmt.Errorf("no repos found in %s", c.Option.Config)
 	}
 
 	if c.Option.Import {
-		m := c.CurrentLabels()
+		cfg := c.CurrentLabels()
 		f, err := os.Create(c.Option.Config)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		return yaml.NewEncoder(f).Encode(&m)
+		return yaml.NewEncoder(f).Encode(&cfg)
 	}
 
 	if cmp.Equal(c.CurrentLabels(), c.Config) {
@@ -150,8 +150,8 @@ func (c *CLI) Sync(repo Repo) error {
 	return c.deleteLabels(slugs[0], slugs[1])
 }
 
-func (c *CLI) CurrentLabels() Manifest {
-	var m Manifest
+func (c *CLI) CurrentLabels() Config {
+	var cfg Config
 	for _, repo := range c.Config.Repos {
 		slugs := strings.Split(repo.Name, "/")
 		if len(slugs) != 2 {
@@ -168,8 +168,8 @@ func (c *CLI) CurrentLabels() Manifest {
 			ls = append(ls, label.Name)
 		}
 		repo.Labels = ls
-		m.Repos = append(m.Repos, repo)
-		m.Labels = append(m.Labels, labels...)
+		cfg.Repos = append(cfg.Repos, repo)
+		cfg.Labels = append(cfg.Labels, labels...)
 	}
-	return m
+	return cfg
 }
