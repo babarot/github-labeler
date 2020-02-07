@@ -9,13 +9,6 @@ inputs:
     description: 'Import existing labels if enabled'
     required: false
     default: 'false'
-  diff:
-    description: 'Show if the diff between described labels in YAML config file and existing labels exists'
-    required: false
-    default: 'false'
-outputs:
-  diff:
-    description: 'Returns yes if the diff between described labels in YAML config file and existing labels exists'
 runs:
   using: 'docker'
   image: 'Dockerfile'

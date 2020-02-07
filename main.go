@@ -65,7 +65,6 @@ type Option struct {
 	DryRun  bool   `long:"dry-run" description:"Just dry run"`
 	Config  string `short:"c" long:"config" description:"Path to YAML file that labels are defined" default:"labels.yaml"`
 	Import  bool   `long:"import" description:"Import existing labels if enabled"`
-	Diff    bool   `long:"diff" description:"Show if the diff between described labels in YAML config file and existing labels exists"`
 	Version bool   `long:"version" description:"Show version"`
 }
 
@@ -320,6 +319,11 @@ func (c *CLI) CurrentLabels() Manifest {
 			// TODO: handle error
 			continue
 		}
+		var ls []string
+		for _, label := range labels {
+			ls = append(ls, label.Name)
+		}
+		repo.Labels = ls
 		m.Repos = append(m.Repos, repo)
 		m.Labels = append(m.Labels, labels...)
 	}
@@ -359,10 +363,11 @@ func (c *CLI) Run(args []string) error {
 	c.Client = gc
 	c.Config = m
 
+	if len(c.Config.Repos) == 0 {
+		return fmt.Errorf("no repos found in %s", c.Option.Config)
+	}
+
 	if c.Option.Import {
-		if len(c.Config.Repos) == 0 {
-			return fmt.Errorf("no repos found in %s", c.Option.Config)
-		}
 		m := c.CurrentLabels()
 		f, err := os.Create(c.Option.Config)
 		if err != nil {
@@ -372,17 +377,9 @@ func (c *CLI) Run(args []string) error {
 		return yaml.NewEncoder(f).Encode(&m)
 	}
 
-	if c.Option.Diff {
-		if len(c.Config.Repos) == 0 {
-			return fmt.Errorf("no repos found in %s", c.Option.Config)
-		}
-		m := c.CurrentLabels()
-		if cmp.Equal(m, c.Config) {
-			return nil
-		}
-		// TODO: import diff
-		// yamldiff, dyff
-		return errors.New("diff exists")
+	if cmp.Equal(c.CurrentLabels(), c.Config) {
+		// no need to sync
+		return nil
 	}
 
 	eg := errgroup.Group{}
