@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"context"
@@ -23,7 +23,7 @@ type Repo struct {
 // Repos represents a collection of Repo
 type Repos []Repo
 
-func (c *CLI) GetLabel(owner, repo string, label Label) (Label, error) {
+func (c *Client) GetLabel(owner, repo string, label Label) (Label, error) {
 	ctx := context.Background()
 	ghLabel, _, err := c.Labeler.GetLabel(ctx, owner, repo, label.Name)
 	if err != nil {
@@ -36,7 +36,7 @@ func (c *CLI) GetLabel(owner, repo string, label Label) (Label, error) {
 	}, nil
 }
 
-func (c *CLI) CreateLabel(owner, repo string, label Label) error {
+func (c *Client) CreateLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
@@ -53,7 +53,7 @@ func (c *CLI) CreateLabel(owner, repo string, label Label) error {
 	return err
 }
 
-func (c *CLI) EditLabel(owner, repo string, label Label) error {
+func (c *Client) EditLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	ghLabel := &github.Label{
 		Name:        github.String(label.Name),
@@ -65,7 +65,7 @@ func (c *CLI) EditLabel(owner, repo string, label Label) error {
 	return err
 }
 
-func (c *CLI) ListLabels(owner, repo string) ([]Label, error) {
+func (c *Client) ListLabels(owner, repo string) ([]Label, error) {
 	ctx := context.Background()
 	opt := &github.ListOptions{PerPage: 10}
 	var labels []Label
@@ -89,7 +89,7 @@ func (c *CLI) ListLabels(owner, repo string) ([]Label, error) {
 	return labels, nil
 }
 
-func (c *CLI) DeleteLabel(owner, repo string, label Label) error {
+func (c *Client) DeleteLabel(owner, repo string, label Label) error {
 	ctx := context.Background()
 	c.Logger.Printf("delete %q in %s/%s", label.Name, owner, repo)
 	_, err := c.Labeler.DeleteLabel(ctx, owner, repo, label.Name)

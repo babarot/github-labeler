@@ -18,15 +18,6 @@ func main() {
 }
 
 func run(args []string) int {
-	// clilog.Env = "GOMI_LOG"
-	// clilog.SetOutput()
-	// defer log.Printf("[INFO] finish main function")
-	//
-	// log.Printf("[INFO] Version: %s (%s)", Version, Revision)
-	// log.Printf("[INFO] gomiPath: %s", gomiPath)
-	// log.Printf("[INFO] inventoryPath: %s", inventoryPath)
-	// log.Printf("[INFO] Args: %#v", args)
-
 	var opt Option
 	args, err := flags.ParseArgs(&opt, args)
 	if err != nil {

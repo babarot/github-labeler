@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/b4b4r07/github-labeler/pkg/github"
 	yaml "gopkg.in/yaml.v2"
 )
 
 // Config represents the YAML file described about labels and repos
 type Config struct {
-	Labels []Label `yaml:"labels"`
-	Repos  Repos   `yaml:"repos"`
+	Labels []github.Label `yaml:"labels"`
+	Repos  github.Repos   `yaml:"repos"`
 }
 
 func loadConfig(path string) (Config, error) {
@@ -23,13 +24,13 @@ func loadConfig(path string) (Config, error) {
 	return cfg, err
 }
 
-func (cfg Config) getDefinedLabel(name string) (Label, error) {
+func (cfg Config) getDefinedLabel(name string) (github.Label, error) {
 	for _, label := range cfg.Labels {
 		if label.Name == name {
 			return label, nil
 		}
 	}
-	return Label{}, fmt.Errorf("%s: no such defined label in config YAML", name)
+	return github.Label{}, fmt.Errorf("%s: no such defined label in config YAML", name)
 }
 
 func (cfg Config) checkIfRepoHasLabel(repoName, labelName string) bool {

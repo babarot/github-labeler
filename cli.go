@@ -1,16 +1,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
+	"github.com/b4b4r07/github-labeler/pkg/github"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-github/github"
-	"golang.org/x/oauth2"
 	"golang.org/x/sync/errgroup"
 	yaml "gopkg.in/yaml.v2"
 )
@@ -20,9 +17,8 @@ type CLI struct {
 	Stderr io.Writer
 	Option Option
 
-	Labeler Labeler
-	Logger  *log.Logger
-	Config  Config
+	Config Config
+	Client *github.Client
 }
 
 type Option struct {
@@ -33,16 +29,10 @@ type Option struct {
 }
 
 func (c *CLI) Run(args []string) error {
-	token := os.Getenv("GITHUB_TOKEN")
-	if token == "" {
-		return errors.New("GITHUB_TOKEN is missing")
+	if c.Option.Version {
+		fmt.Fprintf(c.Stdout, "%s (%s)\n", Version, Revision)
+		return nil
 	}
-
-	ts := oauth2.StaticTokenSource(&oauth2.Token{
-		AccessToken: token,
-	})
-	tc := oauth2.NewClient(oauth2.NoContext, ts)
-	client := github.NewClient(tc)
 
 	cfg, err := loadConfig(c.Option.Config)
 	if err != nil {
@@ -50,13 +40,11 @@ func (c *CLI) Run(args []string) error {
 	}
 	c.Config = cfg
 
-	c.Labeler = githubClientImpl{client}
-	c.Logger = log.New(os.Stdout, "labeler: ", log.Ldate|log.Ltime)
-
-	if c.Option.DryRun {
-		c.Labeler = githubClientDryRun{client}
-		c.Logger.SetPrefix("labeler (dry-run): ")
+	client, err := github.NewClient(c.Option.DryRun)
+	if err != nil {
+		return err
 	}
+	c.Client = client
 
 	if len(c.Config.Repos) == 0 {
 		return fmt.Errorf("no repos found in %s", c.Option.Config)
@@ -64,8 +52,7 @@ func (c *CLI) Run(args []string) error {
 
 	actual := c.ActualConfig()
 	if cmp.Equal(actual, c.Config) {
-		// no need to sync
-		c.Logger.Printf("Claimed config and actual config is the same")
+		fmt.Fprintf(c.Stdout, "no need to sync (actual and desired is the same)\n")
 		return nil
 	}
 
@@ -90,14 +77,14 @@ func (c *CLI) Run(args []string) error {
 }
 
 // applyLabels creates/edits labels described in YAML
-func (c *CLI) applyLabels(owner, repo string, label Label) error {
-	ghLabel, err := c.GetLabel(owner, repo, label)
+func (c *CLI) applyLabels(owner, repo string, label github.Label) error {
+	ghLabel, err := c.Client.GetLabel(owner, repo, label)
 	if err != nil {
-		return c.CreateLabel(owner, repo, label)
+		return c.Client.CreateLabel(owner, repo, label)
 	}
 
 	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
-		return c.EditLabel(owner, repo, label)
+		return c.Client.EditLabel(owner, repo, label)
 	}
 
 	return nil
@@ -105,7 +92,7 @@ func (c *CLI) applyLabels(owner, repo string, label Label) error {
 
 // deleteLabels deletes the label not described in YAML but exists on GitHub
 func (c *CLI) deleteLabels(owner, repo string) error {
-	labels, err := c.ListLabels(owner, repo)
+	labels, err := c.Client.ListLabels(owner, repo)
 	if err != nil {
 		return err
 	}
@@ -115,7 +102,7 @@ func (c *CLI) deleteLabels(owner, repo string) error {
 			// no need to delete
 			continue
 		}
-		err := c.DeleteLabel(owner, repo, label)
+		err := c.Client.DeleteLabel(owner, repo, label)
 		if err != nil {
 			return err
 		}
@@ -125,7 +112,7 @@ func (c *CLI) deleteLabels(owner, repo string) error {
 }
 
 // Sync syncs labels based on YAML
-func (c *CLI) Sync(repo Repo) error {
+func (c *CLI) Sync(repo github.Repo) error {
 	slugs := strings.Split(repo.Name, "/")
 	if len(slugs) != 2 {
 		return fmt.Errorf("repository name %q is invalid", repo.Name)
@@ -151,7 +138,7 @@ func (c *CLI) ActualConfig() Config {
 			// TODO: handle error
 			continue
 		}
-		labels, err := c.ListLabels(slugs[0], slugs[1])
+		labels, err := c.Client.ListLabels(slugs[0], slugs[1])
 		if err != nil {
 			// TODO: handle error
 			continue
