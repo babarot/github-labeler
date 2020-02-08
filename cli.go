@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -18,6 +19,7 @@ type CLI struct {
 	Option Option
 
 	Config Config
+	Remote Config
 	Client *github.Client
 }
 
@@ -46,23 +48,14 @@ func (c *CLI) Run(args []string) error {
 	}
 	c.Client = client
 
-	if len(c.Config.Repos) == 0 {
-		return fmt.Errorf("no repos found in %s", c.Option.Config)
-	}
-
-	actual := c.ActualConfig()
-	if cmp.Equal(actual, c.Config) {
-		fmt.Fprintf(c.Stdout, "no need to sync (actual and desired is the same)\n")
-		return nil
+	if err := c.Validate(); err != nil {
+		// fmt.Fprintf(c.Stderr, "Note: %s\n", err)
+		// return nil
+		return err
 	}
 
 	if c.Option.Import {
-		f, err := os.Create(c.Option.Config)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		return yaml.NewEncoder(f).Encode(&actual)
+		return c.Import()
 	}
 
 	eg := errgroup.Group{}
@@ -130,17 +123,21 @@ func (c *CLI) Sync(repo github.Repo) error {
 	return c.deleteLabels(slugs[0], slugs[1])
 }
 
-func (c *CLI) ActualConfig() Config {
+func (c *CLI) Validate() error {
+	if len(c.Config.Repos) == 0 {
+		return fmt.Errorf("no repos found in %s", c.Option.Config)
+	}
+
 	var cfg Config
 	for _, repo := range c.Config.Repos {
 		slugs := strings.Split(repo.Name, "/")
 		if len(slugs) != 2 {
-			// TODO: handle error
+			// TODO: log
 			continue
 		}
 		labels, err := c.Client.ListLabels(slugs[0], slugs[1])
 		if err != nil {
-			// TODO: handle error
+			// TODO: log
 			continue
 		}
 		var ls []string
@@ -151,5 +148,22 @@ func (c *CLI) ActualConfig() Config {
 		cfg.Repos = append(cfg.Repos, repo)
 		cfg.Labels = append(cfg.Labels, labels...)
 	}
-	return cfg
+
+	// used for Import func
+	c.Remote = cfg
+
+	if cmp.Equal(cfg, c.Config) {
+		return errors.New("existing labels and defined labels are the same")
+	}
+
+	return nil
+}
+
+func (c *CLI) Import() error {
+	f, err := os.Create(c.Option.Config)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return yaml.NewEncoder(f).Encode(&c.Remote)
 }
