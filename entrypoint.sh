@@ -1,11 +1,14 @@
 #!/bin/bash
 
-config=${INPUT_CONFIG}
+args=()
 
-import=${INPUT_IMPORT:-false}
-if ${import}; then
-  github-labeler --import --config=${config}
-  exit ${?}
+if ${INPUT_IMPORT:-false}; then
+  args+=("--import")
 fi
 
-github-labeler --config=${config}
+if ${INPUT_DRYRUN:-false}; then
+  args+=("--dry-run")
+fi
+
+config=${INPUT_CONFIG}
+github-labeler --config=${config} ${args[@]}

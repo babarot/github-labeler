@@ -9,6 +9,10 @@ inputs:
     description: 'Import existing labels if enabled'
     required: false
     default: 'false'
+  dryrun:
+    description: 'Just show what would be done if enabled'
+    required: false
+    default: 'false'
 runs:
   using: 'docker'
   image: 'Dockerfile'
