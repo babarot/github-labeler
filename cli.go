@@ -18,9 +18,9 @@ type CLI struct {
 	Stderr io.Writer
 	Option Option
 
-	Config Config
-	Remote Config
-	Client *github.Client
+	Defined Config
+	Actual  Config
+	GitHub  *github.Client
 }
 
 type Option struct {
@@ -40,13 +40,13 @@ func (c *CLI) Run(args []string) error {
 	if err != nil {
 		return err
 	}
-	c.Config = cfg
+	c.Defined = cfg
 
 	client, err := github.NewClient(c.Option.DryRun)
 	if err != nil {
 		return err
 	}
-	c.Client = client
+	c.GitHub = client
 
 	if err := c.Validate(); err != nil {
 		// fmt.Fprintf(c.Stderr, "Note: %s\n", err)
@@ -58,26 +58,18 @@ func (c *CLI) Run(args []string) error {
 		return c.Import()
 	}
 
-	eg := errgroup.Group{}
-	for _, repo := range c.Config.Repos {
-		repo := repo
-		eg.Go(func() error {
-			return c.Sync(repo)
-		})
-	}
-
-	return eg.Wait()
+	return c.Sync()
 }
 
 // applyLabels creates/edits labels described in YAML
 func (c *CLI) applyLabels(owner, repo string, label github.Label) error {
-	ghLabel, err := c.Client.GetLabel(owner, repo, label)
+	ghLabel, err := c.GitHub.GetLabel(owner, repo, label)
 	if err != nil {
-		return c.Client.CreateLabel(owner, repo, label)
+		return c.GitHub.CreateLabel(owner, repo, label)
 	}
 
 	if ghLabel.Description != label.Description || ghLabel.Color != label.Color {
-		return c.Client.EditLabel(owner, repo, label)
+		return c.GitHub.EditLabel(owner, repo, label)
 	}
 
 	return nil
@@ -85,17 +77,17 @@ func (c *CLI) applyLabels(owner, repo string, label github.Label) error {
 
 // deleteLabels deletes the label not described in YAML but exists on GitHub
 func (c *CLI) deleteLabels(owner, repo string) error {
-	labels, err := c.Client.ListLabels(owner, repo)
+	labels, err := c.GitHub.ListLabels(owner, repo)
 	if err != nil {
 		return err
 	}
 
 	for _, label := range labels {
-		if c.Config.checkIfRepoHasLabel(owner+"/"+repo, label.Name) {
+		if c.Defined.checkIfRepoHasLabel(owner+"/"+repo, label.Name) {
 			// no need to delete
 			continue
 		}
-		err := c.Client.DeleteLabel(owner, repo, label)
+		err := c.GitHub.DeleteLabel(owner, repo, label)
 		if err != nil {
 			return err
 		}
@@ -104,14 +96,13 @@ func (c *CLI) deleteLabels(owner, repo string) error {
 	return nil
 }
 
-// Sync syncs labels based on YAML
-func (c *CLI) Sync(repo github.Repo) error {
+func (c *CLI) syncLabels(repo github.Repo) error {
 	slugs := strings.Split(repo.Name, "/")
 	if len(slugs) != 2 {
 		return fmt.Errorf("repository name %q is invalid", repo.Name)
 	}
 	for _, labelName := range repo.Labels {
-		label, err := c.Config.getDefinedLabel(labelName)
+		label, err := c.Defined.getDefinedLabel(labelName)
 		if err != nil {
 			return err
 		}
@@ -124,18 +115,18 @@ func (c *CLI) Sync(repo github.Repo) error {
 }
 
 func (c *CLI) Validate() error {
-	if len(c.Config.Repos) == 0 {
+	if len(c.Defined.Repos) == 0 {
 		return fmt.Errorf("no repos found in %s", c.Option.Config)
 	}
 
 	var cfg Config
-	for _, repo := range c.Config.Repos {
+	for _, repo := range c.Defined.Repos {
 		slugs := strings.Split(repo.Name, "/")
 		if len(slugs) != 2 {
 			// TODO: log
 			continue
 		}
-		labels, err := c.Client.ListLabels(slugs[0], slugs[1])
+		labels, err := c.GitHub.ListLabels(slugs[0], slugs[1])
 		if err != nil {
 			// TODO: log
 			continue
@@ -150,9 +141,9 @@ func (c *CLI) Validate() error {
 	}
 
 	// used for Import func
-	c.Remote = cfg
+	c.Actual = cfg
 
-	if cmp.Equal(cfg, c.Config) {
+	if cmp.Equal(cfg, c.Defined) {
 		return errors.New("existing labels and defined labels are the same")
 	}
 
@@ -165,5 +156,17 @@ func (c *CLI) Import() error {
 		return err
 	}
 	defer f.Close()
-	return yaml.NewEncoder(f).Encode(&c.Remote)
+	return yaml.NewEncoder(f).Encode(&c.Actual)
+}
+
+// Sync syncs labels based on YAML
+func (c *CLI) Sync() error {
+	var eg errgroup.Group
+	for _, repo := range c.Defined.Repos {
+		repo := repo
+		eg.Go(func() error {
+			return c.syncLabels(repo)
+		})
+	}
+	return eg.Wait()
 }
