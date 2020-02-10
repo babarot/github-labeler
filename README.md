@@ -71,8 +71,6 @@ It means to do the same with GitHub Actions as running github-labeler on your lo
 <details><summary><code>.github/workflows/sync_labels.yml</code></summary>
 </br>
 
-![](ga-sync.png)
-
 ```yaml
 name: Sync labels
 
@@ -96,6 +94,8 @@ jobs:
 ```
 
 </details>
+
+<img src="ga-sync.png">
 
 ### YAML for workflows to import labels from existing one to defined one
 
