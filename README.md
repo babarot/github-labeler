@@ -96,7 +96,7 @@ jobs:
 
 </details>
 
-<img src="docs/ga-sync.png">
+<img src="docs/ga-sync.png" width="600">
 
 If you want to make sure what changes to be applied in a pull request step, you can run github-labeler with dryrun option. By having [action-github-comment](https://github.com/b4b4r07/action-github-comment) step, you can also post the github-labeler result to the GitHub comment.
 
@@ -138,9 +138,9 @@ jobs:
 
 </details>
 
-<img src="docs/ga-sync-dryrun.png">
+<img src="docs/ga-sync-dryrun.png" width="600">
 
-<img src="docs/ga-sync-dryrun-result.png" width="400">
+<img src="docs/ga-sync-dryrun-result.png" width="600">
 
 ### YAML for workflows to import labels from existing one to defined one
 
@@ -189,7 +189,7 @@ jobs:
 
 </details>
 
-<img src="docs/ga-import.png" width="400">
+<img src="docs/ga-import.png" width="600">
 
 ## Installation
 
