@@ -13,6 +13,9 @@ inputs:
     description: 'Just show what would be done if enabled'
     required: false
     default: 'false'
+outputs:
+  result:
+    description: 'Outputs of github-labeler command'
 runs:
   using: 'docker'
   image: 'Dockerfile'
