@@ -1,7 +1,7 @@
-Labels as a Code!
-=================
+GitHub labels as a Code!
+========================
 
-![](demo.png)
+![](docs/demo.png)
 
 CLI that sets GitHub labels exactly as written in YAML file
 
@@ -83,6 +83,7 @@ on:
 
 jobs:
   sync:
+    name: Run
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -95,7 +96,51 @@ jobs:
 
 </details>
 
-<img src="ga-sync.png">
+<img src="docs/ga-sync.png">
+
+If you want to make sure what changes to be applied in a pull request step, you can run github-labeler with dryrun option. By having [action-github-comment](https://github.com/b4b4r07/action-github-comment) step, you can also post the github-labeler result to the GitHub comment.
+
+<details><summary><code>.github/workflows/sync_labels_dryrun.yml</code></summary>
+</br>
+
+```yaml
+name: Sync labels
+
+on: [pull_request]
+
+jobs:
+  sync:
+    name: Dry run
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Sync labels with dryrun option
+        uses: b4b4r07/github-labeler@master
+        with:
+          dryrun: 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        id: labeler
+      - name: Post github-labeler command result to GitHub comment
+        uses: b4b4r07/action-github-comment@master
+        if: steps.labeler.outputs.result
+        with:
+          body: |
+            ## github-labeler result
+            ```
+            ${{ steps.labeler.outputs.result }}
+            ```
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOG: trace
+```
+
+</details>
+
+<img src="docs/ga-sync-dryrun.png">
+
+<img src="docs/ga-sync-dryrun-result.png" width="400">
 
 ### YAML for workflows to import labels from existing one to defined one
 
@@ -144,7 +189,7 @@ jobs:
 
 </details>
 
-<img src="ga-import.png" width="400">
+<img src="docs/ga-import.png" width="400">
 
 ## Installation
 
