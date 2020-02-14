@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -114,6 +115,15 @@ func (c *CLI) syncLabels(repo github.Repo) error {
 	return c.deleteLabels(slugs[0], slugs[1])
 }
 
+func checkLabelDuplication(labels []github.Label, target github.Label) bool {
+	for _, label := range labels {
+		if cmp.Equal(label, target) {
+			return true
+		}
+	}
+	return false
+}
+
 func (c *CLI) Validate() error {
 	if len(c.Defined.Repos) == 0 {
 		return fmt.Errorf("no repos found in %s", c.Option.Config)
@@ -128,7 +138,7 @@ func (c *CLI) Validate() error {
 		}
 		labels, err := c.GitHub.ListLabels(slugs[0], slugs[1])
 		if err != nil {
-			// TODO: log
+			log.Printf("[ERROR] failed to fetch labels %s/%s: %v", slugs[0], slugs[1], err)
 			continue
 		}
 		var ls []string
@@ -137,7 +147,13 @@ func (c *CLI) Validate() error {
 		}
 		repo.Labels = ls
 		cfg.Repos = append(cfg.Repos, repo)
-		cfg.Labels = append(cfg.Labels, labels...)
+		for _, label := range labels {
+			if c.checkLabelDuplication(cfg.Labels, label) {
+				log.Printf("[WARN] %s is duplicate, so skip to add", label.Name)
+				continue
+			}
+			cfg.Labels = append(cfg.Labels, label)
+		}
 	}
 
 	// used for Import func
