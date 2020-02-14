@@ -148,7 +148,7 @@ func (c *CLI) Validate() error {
 		repo.Labels = ls
 		cfg.Repos = append(cfg.Repos, repo)
 		for _, label := range labels {
-			if c.checkLabelDuplication(cfg.Labels, label) {
+			if checkLabelDuplication(cfg.Labels, label) {
 				log.Printf("[WARN] %s is duplicate, so skip to add", label.Name)
 				continue
 			}
