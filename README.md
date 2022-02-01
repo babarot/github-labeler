@@ -144,7 +144,7 @@ jobs:
 
 ### YAML for workflows to import labels from existing one to defined one
 
-This is the workflow to import your existing labels on GitHu to the definition YAML.
+This is the workflow to import your existing labels on GitHub to the definition YAML.
 Even if you define the labels on YAML file, someone may change the label information or create new one on GitHub (Web UI). If so, these labels updating should be synced with the definition file. In order to solve those problems, this workflow imports label-related changes triggered by events of labels activities.
 
 <details><summary><code>.github/workflows/import_labels.yml</code></summary>
